@@ -1,0 +1,76 @@
+name: AppSec Pipeline - SAST (Semgrep) + DAST (OWASP ZAP)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  sast-semgrep:
+    name: SAST - Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep (SARIF)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: "p/ci"
+          generateSarif: "1"
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  dast-zap:
+    name: DAST - OWASP ZAP Baseline
+    runs-on: ubuntu-latest
+    needs: [sast-semgrep]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start VAmPI (docker compose)
+        run: |
+          docker compose up -d --build
+          docker ps
+
+      - name: Wait for API
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:5000/ >/dev/null 2>&1; then
+              echo "API is up!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready in time"
+          docker compose logs
+          exit 1
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "http://localhost:5000"
+          format: "html"
+          fail_action: false
+
+      - name: Upload ZAP reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-reports
+          path: |
+            report_html.html
+            report_json.json
+            report_md.md
+
+      - name: Stop VAmPI
+        if: always()
+        run: docker compose down -v
