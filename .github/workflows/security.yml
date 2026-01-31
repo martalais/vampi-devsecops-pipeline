@@ -1,4 +1,4 @@
-name: AppSec Pipeline - SAST (Semgrep) + DAST (OWASP ZAP)
+name: Security - SAST (Semgrep) + DAST (OWASP ZAP)
 
 on:
   push:
@@ -13,17 +13,18 @@ jobs:
   sast-semgrep:
     name: SAST - Semgrep
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Semgrep (SARIF)
+      - name: Run Semgrep (SARIF output)
         uses: semgrep/semgrep-action@v1
         with:
           config: "p/ci"
           generateSarif: "1"
 
-      - name: Upload SARIF
+      - name: Upload Semgrep results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
@@ -34,31 +35,36 @@ jobs:
     needs: [sast-semgrep]
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Start VAmPI (docker compose)
+      - name: Start VAmPI using Docker Compose
         run: |
           docker compose up -d --build
-          docker ps
+          docker compose ps
 
-      - name: Wait for API
+      - name: Wait for VAmPI vulnerable API (port 5002)
         run: |
           for i in {1..60}; do
-            if curl -fsS http://localhost:5000/ >/dev/null 2>&1; then
+            if curl -sS http://localhost:5002/ >/dev/null 2>&1; then
               echo "API is up!"
               exit 0
             fi
             sleep 2
           done
           echo "API did not become ready in time"
+          docker compose ps
           docker compose logs
           exit 1
 
-      - name: ZAP Baseline Scan
+      - name: Initialize VAmPI database
+        run: |
+          curl -sS http://localhost:5002/createdb >/dev/null
+
+      - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
         with:
-          target: "http://localhost:5000"
+          target: "http://localhost:5002"
           format: "html"
           fail_action: false
 
@@ -71,6 +77,6 @@ jobs:
             report_json.json
             report_md.md
 
-      - name: Stop VAmPI
+      - name: Stop VAmPI containers
         if: always()
         run: docker compose down -v
