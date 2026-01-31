@@ -1,98 +1,143 @@
-# VAmPI
-**The Vulnerable API** *(Based on OpenAPI 3)*
-![vampi](https://i.imgur.com/zR0quKf.jpg)
+# VAmPI – DevSecOps Security Pipeline (SAST + DAST)
 
-[![Docker Image CI](https://github.com/erev0s/VAmPI/actions/workflows/docker-image.yml/badge.svg)](https://github.com/erev0s/VAmPI/actions/workflows/docker-image.yml) ![Docker Pulls](https://img.shields.io/docker/pulls/erev0s/vampi)
+Este repositório utiliza o projeto **VAmPI (Vulnerable API)** como aplicação alvo para demonstrar a implementação de uma **pipeline de segurança DevSecOps**, integrando ferramentas de **SAST** e **DAST** em um workflow automatizado com **GitHub Actions**.
 
+O objetivo deste projeto não é corrigir as vulnerabilidades da aplicação, mas sim **demonstrar como testes de segurança podem ser integrados ao ciclo de desenvolvimento** de forma automatizada, reproduzível e visível no CI.
 
-VAmPI is a vulnerable API made with Flask and it includes vulnerabilities from the OWASP top 10 vulnerabilities for APIs. It was created as I wanted a vulnerable API to evaluate the efficiency of tools used to detect security issues in APIs. It includes a switch on/off to allow the API to be vulnerable or not while testing. This allows to cover better the cases for false positives/negatives. VAmPI can also be used for learning/teaching purposes. You can find a bit more details about the vulnerabilities in [erev0s.com](https://erev0s.com/blog/vampi-vulnerable-api-security-testing/).
+---
 
+## Objetivo do Case
 
-#### Features
- - Based on OWASP Top 10 vulnerabilities for APIs.
- - OpenAPI3 specs and Postman Collection included.
- - Global switch on/off to have a vulnerable environment or not.
- - Token-Based Authentication (Adjust lifetime from within app.py)
- - Available Swagger UI to directly interact with the API
+Atender aos seguintes requisitos:
 
-VAmPI's flow of actions is going like this: an unregistered user can see minimal information about the dummy users included in the API. A user can register and then login to be allowed using the token received during login to post a book. For a book posted the data accepted are the title and a secret about that book. Each book is unique for every user and only the owner of the book should be allowed to view the secret.
+- Clonar o repositório VAmPI
+- Implementar uma pipeline contendo:
+  - **SAST (Static Application Security Testing)**
+  - **DAST (Dynamic Application Security Testing)**
+- Explicar a finalidade e o processo de implementação das ferramentas escolhidas
+- Disponibilizar o projeto em um repositório público com os testes funcionando
 
-A quick rundown of the actions included can be seen in the following table:
+---
 
-| **Action** |            **Path**           |                     **Details**                    |
-|:----------:|:-----------------------------:|:--------------------------------------------------:|
-|     GET    |           /createdb           | Creates and populates the database with dummy data |
-|     GET    |               /               |                     VAmPI home                     |
-|     GET    |               /me             |           Displays the user that is logged in       |
-|     GET    |           /users/v1           |      Displays all users with basic information     |
-|     GET    |        /users/v1/_debug       |         Displays all details for all users         |
-|    POST    |       /users/v1/register      |                  Register new user                 |
-|    POST    |        /users/v1/login        |                   Login to VAmPI                   |
-|     GET    |      /users/v1/{username}     |              Displays user by username             |
-|   DELETE   |      /users/v1/{username}     |       Deletes user by username (Only Admins)       |
-|     PUT    |   /users/v1/{username}/email  |             Update a single users email            |
-|     PUT    | /users/v1/{username}/password |                Update users password               |
-|     GET    |           /books/v1           |                 Retrieves all books                |
-|    POST    |           /books/v1           |                    Add new book                    |
-|     GET    |        /books/v1/{book}       |      Retrieves book by title along with secret     |
+## Visão Geral da Pipeline
 
-For more details you can either run VAmPI and visit `http://127.0.0.1:5000/ui/` or use a service like the [swagger editor](https://editor.swagger.io) supplying the OpenAPI specification which can be found in the directory `openapi_specs`.
+A pipeline de segurança foi implementada utilizando **GitHub Actions** e é executada automaticamente em eventos de:
 
+- `push` na branch principal
+- `pull_request`
 
-#### List of Vulnerabilities
- - SQLi Injection
- - Unauthorized Password Change
- - Broken Object Level Authorization
- - Mass Assignment
- - Excessive Data Exposure through debug endpoint
- - User and Password Enumeration
- - RegexDOS (Denial of Service)
- - Lack of Resources & Rate Limiting
- - JWT authentication bypass via weak signing key
+Ela é composta por dois estágios principais:
 
+1. **SAST – Análise Estática de Código**
+2. **DAST – Análise Dinâmica da Aplicação em Execução**
 
+O workflow completo está definido em:
 
- ## Run it
-It is a Flask application so in order to run it you can install all requirements and then run the `app.py`.
-To install all requirements simply run `pip3 install -r requirements.txt` and then `python3 app.py`.
+- `.github/workflows/security.yml`
 
-Or if you prefer you can also run it through docker or docker compose.
+---
 
- #### Run it through Docker
+## SAST – Static Application Security Testing
 
- - Available in [Dockerhub](https://hub.docker.com/r/erev0s/vampi)
-~~~~
-docker run -p 5000:5000 erev0s/vampi:latest
-~~~~
+### Ferramenta escolhida: **Semgrep**
 
-[Note: if you run Docker on newer versions of the MacOS, use `-p 5001:5000` to avoid conflicting with the AirPlay Receiver service. Alternatively, you could disable the AirPlay Receiver service in your System Preferences -> Sharing settings.]
+O **Semgrep** foi escolhido por ser uma ferramenta moderna de análise estática, com fácil integração em pipelines de CI/CD e bom equilíbrio entre cobertura e taxa de falsos positivos.
 
-  #### Run it through Docker Compose
-`docker-compose` contains two instances, one instance with the secure configuration on port 5001 and another with insecure on port 5002:
-~~~~
-docker-compose up -d
-~~~~
+### Como funciona na pipeline
 
-## Available Swagger UI :rocket:
-Visit the path `/ui` where you are running the API and a Swagger UI will be available to help you get started!
-~~~~
-http://127.0.0.1:5000/ui/
-~~~~
+- O código-fonte do repositório é analisado sem necessidade de build ou execução da aplicação.
+- É utilizado o conjunto de regras `p/ci`, voltado para práticas inseguras comuns em aplicações.
+- Os resultados são gerados no formato **SARIF** e enviados para o **GitHub Code Scanning**, ficando visíveis na aba **Security** do repositório.
 
-## Customizing token timeout and vulnerable environment or not
-If you would like to alter the timeout of the token created after login or if you want to change the environment **not** to be vulnerable then you can use a few ways depending how you run the application.
+### Benefícios do SAST
 
- - If you run it like normal with `python3 app.py` then all you have to do is edit the `alive` and `vuln` variables defined in the `app.py` itself. The `alive` variable is measured in seconds, so if you put `100`, then the token expires after 100 seconds. The `vuln` variable is like boolean, if you set it to `1` then the application is vulnerable, and if you set it to `0` the application is not vulnerable.
- - If you run it through Docker, then you must either pass environment variables to the `docker run` command or edit the `Dockerfile` and rebuild. 
-   - Docker run example: `docker run -d -e vulnerable=0 -e tokentimetolive=300 -p 5000:5000 erev0s/vampi:latest`
-     - One nice feature to running it this way is you can startup a 2nd container with `vulnerable=1` on a different port and flip easily between the two.
+- Detecção precoce de padrões inseguros
+- Análise rápida e automatizada
+- Feedback contínuo para desenvolvedores durante o ciclo de desenvolvimento
 
-   - In the Dockerfile you will find two environment variables being set, the `ENV vulnerable=1` and the `ENV tokentimetolive=60`. Feel free to change it before running the docker build command.
+---
 
+## DAST – Dynamic Application Security Testing
 
-## Frequently asked questions
- - **There is a database error upon reaching endpoints!**
-   - Make sure to issue a request towards the endpoint `/createdb` in order to populate the database.
+### Ferramenta escolhida: **OWASP ZAP (Baseline Scan)**
 
- [Picture from freepik - www.freepik.com](https://www.freepik.com/vectors/party)
+O **OWASP ZAP** foi utilizado para realizar análise dinâmica da aplicação, simulando como um atacante externo poderia observar falhas de segurança via HTTP.
+
+Foi escolhido o modo **Baseline**, que executa principalmente **análises passivas**, sem explorar ativamente a aplicação.
+
+### Como funciona na pipeline
+
+1. A aplicação VAmPI é iniciada automaticamente via **Docker Compose** no runner do GitHub Actions.
+2. A instância **vulnerable** do VAmPI é exposta localmente na porta `5002`.
+3. A pipeline aguarda até que a API esteja acessível.
+4. O endpoint `/createdb` é chamado para inicializar o banco de dados.
+5. O ZAP executa o scan baseline contra `http://localhost:5002`.
+6. Relatórios são gerados e armazenados como **artifacts** do workflow.
+
+### Relatórios gerados
+
+- `report_html.html`
+- `report_json.json`
+- `report_md.md`
+
+Esses arquivos ficam disponíveis para download ao final da execução do workflow.
+
+---
+
+## Observações Importantes sobre o DAST
+
+O VAmPI é uma **API**, e não uma aplicação web tradicional. Por esse motivo:
+
+- Não há navegação baseada em links a partir do endpoint raiz (`/`)
+- Muitos endpoints vulneráveis exigem autenticação ou parâmetros específicos
+- O **ZAP Baseline depende de descoberta de URLs**
+
+Por isso, o scan baseline tende a identificar principalmente:
+- Problemas de headers HTTP
+- Configurações inseguras
+- Possíveis vazamentos de informação
+
+A detecção de vulnerabilidades mais profundas (como SQL Injection, BOLA, falhas de autenticação) exigiria:
+- Scan ativo (ZAP Full Scan)
+- Autenticação automatizada
+- Seeding explícito de endpoints da API
+
+Essa limitação é esperada e condizente com o tipo de scan escolhido.
+
+---
+
+## Por que essa abordagem?
+
+A escolha por **SAST + DAST Baseline** reflete um cenário comum em pipelines reais:
+
+- **SAST** fornece feedback rápido e antecipado
+- **DAST Baseline** adiciona uma camada de validação dinâmica sem alto risco ou impacto
+- A pipeline é estável, reprodutível e adequada para execução automática em CI
+
+Essa combinação permite evoluções futuras, como:
+- Thresholds de severidade
+- Scan ativo em ambientes controlados
+- Autenticação automatizada no DAST
+- Integração com sistemas de gestão de vulnerabilidades
+
+---
+
+## Conclusão
+
+Este projeto demonstra como práticas de **DevSecOps** podem ser aplicadas para integrar segurança ao ciclo de desenvolvimento de software, utilizando ferramentas amplamente adotadas e workflows automatizados.
+
+A pipeline implementada atende aos requisitos do case e fornece uma base sólida para evolução contínua da postura de segurança da aplicação.
+
+---
+
+## Referências
+
+- VAmPI – Vulnerable API  
+  https://github.com/erev0s/VAmPI
+
+- Semgrep  
+  https://semgrep.dev/
+
+- OWASP ZAP  
+  https://www.zaproxy.org/
 
