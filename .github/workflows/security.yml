@@ -69,15 +69,6 @@ jobs:
           allow_issue_writing: false
           artifact_name: zap-reports
 
-      - name: Upload ZAP reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-reports
-          path: |
-            report_html.html
-            report_json.json
-            report_md.md
-
       - name: Stop VAmPI containers
         if: always()
         run: docker compose down -v
