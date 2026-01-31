@@ -22,7 +22,7 @@ jobs:
         uses: semgrep/semgrep-action@v1
         with:
           config: "p/security-audit"
-          generateSarif: "1"
+          args: --sarif
 
       - name: Upload Semgrep results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
