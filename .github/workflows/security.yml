@@ -1,4 +1,4 @@
-name: Security - SAST (Semgrep) + DAST (OWASP ZAP)
+name: DevSecOps Pipeline - SAST (Semgrep) + DAST (OWASP ZAP)
 
 on:
   push:
