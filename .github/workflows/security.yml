@@ -18,11 +18,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Semgrep (SARIF output)
-        uses: semgrep/semgrep-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          config: "p/security-audit"
-          args: --sarif
+          python-version: "3.x"
+
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+
+      - name: Run Semgrep (SARIF)
+        run: |
+          semgrep --config p/security-audit --sarif -o semgrep.sarif .
 
       - name: Upload Semgrep results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
